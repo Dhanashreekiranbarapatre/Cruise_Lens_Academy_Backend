@@ -348,4 +348,10 @@ app.post('/payu-callback', async (req, res) => {
 });
 
 // ---------------- Start Server ----------------
-app.listen(3000, () => console.log('✅ Backend running on https://cruiselensacademy.com:3000'));
+// app.listen(3000, () => console.log('✅ Backend running on https://cruiselensacademy.com:3000'));
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  const host = process.env.HOST || 'localhost';
+  console.log(`✅ Backend running at http://${host}:${PORT}`);
+});
