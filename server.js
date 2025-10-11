@@ -1,3 +1,11 @@
+require('dotenv').config();
+
+console.log('PAYU_KEY:', process.env.PAYU_KEY);
+console.log('PAYU_SALT:', process.env.PAYU_SALT);
+console.log('PAYU_BASE_URL:', process.env.PAYU_BASE_URL);
+console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const crypto = require('crypto');
@@ -10,21 +18,22 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // ---------------- Supabase Setup ----------------
 const supabase = createClient(
-  'https://oafnmnngahdxifwrheco.supabase.co', // Supabase URL
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hZm5tbm5nYWhkeGlmd3JoZWNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3ODc4MjIsImV4cCI6MjA3NDM2MzgyMn0.2xG8SX2C5GsCVl6ySZCYkXL-2klfFKbvvBuRF7Y-dt0' // Supabase Service Role Key
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
 );
 
 // ---------------- PayU Credentials ----------------
-const PAYU_KEY = 'Bb5MaO';
-const PAYU_SALT = '7E9weTfAZZts8lfV91zV8vXfBhB5bPTn';
-const PAYU_BASE_URL = 'https://test.payu.in/_payment'; // Change to secure.payu.in/_payment for LIVE
+const PAYU_KEY = process.env.PAYU_KEY;
+const PAYU_SALT = process.env.PAYU_SALT;
+const PAYU_BASE_URL = process.env.PAYU_BASE_URL;
 
 // ---------------- CORS ----------------
 app.use(cors({
   origin: [
-    'https://cruiselensacademy.com',
-    'https://www.cruiselensacademy.com',
-    'https://admin.cruiselensacademy.com'
+    process.env.FRONTEND_URL, // Angular frontend
+    // 'https://cruiselensacademy.com',
+    // 'https://www.cruiselensacademy.com',
+    // 'https://admin.cruiselensacademy.com'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -89,7 +98,6 @@ app.post('/api/payu-initiate', async (req, res) => {
     if (course === 'course1') amount = "50000.00";
     else if (course === 'course2') amount = "10000.00";
 
-    // Save to Supabase
     const { error } = await supabase.from('applications').insert([{
       txnid,
       fullName: personalInfo.fullName,
@@ -108,7 +116,6 @@ app.post('/api/payu-initiate', async (req, res) => {
 
     if (error) return res.status(500).json({ error: error.message });
 
-    // PayU params
     const payuParams = {
       key: PAYU_KEY,
       txnid,
@@ -117,8 +124,8 @@ app.post('/api/payu-initiate', async (req, res) => {
       email: personalInfo.email.trim(),
       phone: personalInfo.phone,
       productinfo: course.trim(),
-      surl: 'https://cruiselensacademy.com/api/payu-callback',
-      furl: 'https://cruiselensacademy.com/api/payu-callback',
+      surl: `${process.env.FRONTEND_URL}/api/payu-callback`,
+      furl: `${process.env.FRONTEND_URL}/api/payu-callback`,
       service_provider: 'payu_paisa',
       udf1: '', udf2: '', udf3: '', udf4: '', udf5: ''
     };
@@ -150,15 +157,12 @@ app.post('/api/payu-callback', async (req, res) => {
       })
       .eq('txnid', paymentData.txnid);
 
-    if (error) {
-      console.error("❌ Supabase update error:", error.message);
-      return res.status(500).send("DB update failed");
-    }
+    if (error) return res.status(500).send("DB update failed");
 
     if (paymentData.status === 'success') {
-      return res.redirect(`https://cruiselensacademy.com/payment-success?txnid=${paymentData.txnid}`);
+      return res.redirect(`${process.env.FRONTEND_URL}/payment-success?txnid=${paymentData.txnid}`);
     } else {
-      return res.redirect(`https://cruiselensacademy.com/payment-failure?txnid=${paymentData.txnid}`);
+      return res.redirect(`${process.env.FRONTEND_URL}/payment-failure?txnid=${paymentData.txnid}`);
     }
 
   } catch (err) {
@@ -169,8 +173,14 @@ app.post('/api/payu-callback', async (req, res) => {
 
 // ---------------- Start Server ----------------
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || '127.0.0.1';
+const HOST = '127.0.0.1';
 
 app.listen(PORT, HOST, () => {
   console.log(`✅ Backend running at http://${HOST}:${PORT}`);
+});
+app.get('/api/test-payu', (req, res) => {
+  if (!PAYU_KEY || !PAYU_SALT) {
+    return res.status(500).json({ error: 'Missing PayU credentials' });
+  }
+  res.json({ key: PAYU_KEY, salt: PAYU_SALT });
 });
