@@ -23,7 +23,7 @@ const PAYU_BASE_URL = process.env.PAYU_BASE_URL;
 // ---------------- CORS ----------------
 app.use(
   cors({
-    origin: [process.env.FRONTEND_URL],
+    origin: ['http://localhost:4200',process.env.FRONTEND_URL],
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
